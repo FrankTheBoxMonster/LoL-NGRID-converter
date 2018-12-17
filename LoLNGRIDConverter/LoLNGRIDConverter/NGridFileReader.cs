@@ -9,26 +9,10 @@ namespace LoLNGRIDConverter {
 
         #region Color definitions
 
-        // our colors
-        /*private static Color walkableColor = new Color(0, 0, 192);
-        private static Color brushColor = new Color(0, 192, 0);
-        private static Color wallColor = new Color(192, 0, 0);
-        private static Color brushWallColor = new Color(192, 0, 0);  // same as wall
-        private static Color transparentWallColor = new Color(128, 0, 128);  // HTML purple
-        private static Color alwaysVisibleColor = new Color(192, 192, 0);
-        private static Color blueTeamOnlyColor = new Color(0, 192, 192);
-        private static Color redTeamOnlyColor = new Color(255, 192, 203);  // HTML pink
-        private static Color neutralZoneVisibilityColor = new Color(255, 165, 0);  // HTML orange
-        private static Color blueTeamNeutralZoneVisibilityColor = new Color(255, 165, 0);  // same as non-team specific
-        private static Color redTeamNeutralZoneVisibilityColor = new Color(255, 165, 0);  // same as non-team specific
-        */
-
-        // Riot colors
         private static Color walkableColor = new Color(255, 255, 255);
         private static Color brushColor = new Color(0, 122, 14);
-        private static Color wallColor = new Color(0, 65, 122);
-        //private static Color brushWallColor = new Color(0, 216, 111);
-        private static Color brushWallColor = new Color(0, 65, 122);  // same as wall (not using Riot's color because Riot's is ambiguous between walkable or not)
+        private static Color wallColor = new Color(64, 64, 64);
+        private static Color brushWallColor = new Color(0, 216, 111);
         private static Color transparentWallColor = new Color(0, 210, 214);
         private static Color alwaysVisibleColor = new Color(192, 192, 0); // not seen from Riot
         private static Color blueTeamOnlyColor = new Color(87, 79, 255);
@@ -40,22 +24,17 @@ namespace LoLNGRIDConverter {
 
         // all other flags will get indexed into this array
         private static Color[] flagColors = new Color[] { new Color(64, 0, 0),
-                                                          new Color(160, 0, 0),
+                                                          new Color(140, 0, 0),
                                                           new Color(240, 0, 0),
-                                                          new Color(0, 64, 0),
-                                                          new Color(0, 160, 0),
+                                                          new Color(0, 100, 0),
                                                           new Color(0, 240, 0),
-                                                          new Color(0, 0, 64),
-                                                          new Color(0, 0, 160),
+                                                          new Color(0, 0, 100),
                                                           new Color(0, 0, 240),
-                                                          new Color(64, 0, 64),
-                                                          new Color(160, 0, 160),
+                                                          new Color(100, 0, 100),
                                                           new Color(240, 0, 240),
-                                                          new Color(64, 64, 0),
-                                                          new Color(160, 160, 0),
+                                                          new Color(140, 140, 0),
                                                           new Color(240, 240, 0),
-                                                          new Color(0, 64, 64),
-                                                          new Color(0, 160, 160),
+                                                          new Color(0, 140, 140),
                                                           new Color(0, 240, 240),
                                                           new Color(64, 64, 64),
                                                           new Color(160, 160, 160),
@@ -66,6 +45,14 @@ namespace LoLNGRIDConverter {
         // height samples are a gradient based on whatever this color is
         // highest height sample = pure base color
         // lowest height sample = pure black
+        // 
+        // black and white looks nicer than red as a base, but if there's only a single height
+        // sample value for the entire map then the default image becomes pure white, which
+        // blends in with the background when the image viewer is opened (and even with SR height
+        // samples, the corners of spawn are still not very visible against the white background),
+        // so we'll stick with the red base color for now
+        // 
+        // red also seems to be the easiest to differentiate between different shades
         private static Color heightSampleBaseColor = new Color(255, 0, 0);
 
         #endregion
@@ -478,7 +465,7 @@ namespace LoLNGRIDConverter {
 
 
             if(foundNewFlags == true) {
-                Console.WriteLine("\nreport any new flags found (except for VisionPathing 512, unless it's on a map other than the very first Nexus Blitz layout)");
+                Console.WriteLine("\nreport any new flags found (except for on the very first Nexus Blitz layout)");
                 Program.Pause();
             } else {
                 Console.WriteLine("\nno unexpected flags found");
@@ -501,15 +488,15 @@ namespace LoLNGRIDConverter {
         private void WriteBMPFiles() {
             string baseFileName = this.file.GetFolderPath() + this.file.GetName();
 
-            FileWrapper outputVisionPathing = CreateBMPFile(baseFileName + ".visionPathing.bmp");
-            FileWrapper outputRiverRegions = CreateBMPFile(baseFileName + ".riverRegions.bmp");
-            FileWrapper outputJungleQuadrants = CreateBMPFile(baseFileName + ".jungleQuadrants.bmp");
-            FileWrapper outputMainRegions = CreateBMPFile(baseFileName + ".mainRegions.bmp");
-            FileWrapper outputNearestLane = CreateBMPFile(baseFileName + ".nearestLane.bmp");
+            FileWrapper outputVisionPathing = CreateBMPFile(baseFileName + ".VisionPathing.bmp");
+            FileWrapper outputRiverRegions = CreateBMPFile(baseFileName + ".RiverRegions.bmp");
+            FileWrapper outputJungleQuadrants = CreateBMPFile(baseFileName + ".JungleQuadrants.bmp");
+            FileWrapper outputMainRegions = CreateBMPFile(baseFileName + ".MainRegions.bmp");
+            FileWrapper outputNearestLane = CreateBMPFile(baseFileName + ".NearestLane.bmp");
             FileWrapper outputPOI = CreateBMPFile(baseFileName + ".POI.bmp");
-            FileWrapper outputRings = CreateBMPFile(baseFileName + ".rings.bmp");
+            FileWrapper outputRings = CreateBMPFile(baseFileName + ".Rings.bmp");
 
-            FileWrapper outputHeightSamples = CreateBMPFile(baseFileName + ".heightSamples.bmp", heightSampleCountX, heightSampleCountZ);
+            FileWrapper outputHeightSamples = CreateBMPFile(baseFileName + ".HeightSamples.bmp", heightSampleCountX, heightSampleCountZ);
 
 
 
@@ -687,7 +674,7 @@ namespace LoLNGRIDConverter {
 
             if(CheckVisionPathingFlag(flags, VisionPathingFlags.Wall) == true) {
                 if(color == brushColor) {
-                    color = brushWallColor;
+                    color = brushWallColor;  // effectively treated as a transparent wall
                 } else {
                     color = wallColor;
                 }
@@ -743,6 +730,12 @@ namespace LoLNGRIDConverter {
                 index |= 8;
             }
 
+            if(CheckRiverRegionFlag(flags, RiverRegionFlags.Unknown32) == true) {
+                // this is at risk of running out of colors, but we clamp the color index to be in bounds later
+                // in practice, this is the only case where you can actually run out of colors
+                index |= 16;
+            }
+
 
             return GetCellColor(index);
         }
@@ -768,7 +761,13 @@ namespace LoLNGRIDConverter {
         }
 
         private Color GetCellColor(int flags) {
-            return flagColors[flags];
+            int index = flags;
+
+            if(index >= flagColors.Length) {
+                index = flagColors.Length - 1;
+            }
+
+            return flagColors[index];
         }
 
         #endregion

@@ -47,7 +47,7 @@ namespace LoLNGRIDConverter {
         NeutralZoneVisiblity = 4096,  // no bits observed past this point
     }
 
-    public enum RiverRegionFlags {  // 8 bits, bitfield
+    public enum RiverRegionFlags {  // 8 bits, bitfield (equality for original Nexus Blitz)
         KnownFlags = NonJungle | JungleQuadrant | BaronPit | River | RiverEntrance,
 
         NonJungle = 0,
@@ -58,7 +58,7 @@ namespace LoLNGRIDConverter {
         Unobserved8 = 8,
 
         River = 16,
-        Unobserved32 = 32,
+        Unknown32 = 32,  // only ever found on the original Nexus Blitz map, where it was instead used to represent the river (other flags were shuffled too)
         RiverEntrance = 64,  // no bits observed past this point
     }
 

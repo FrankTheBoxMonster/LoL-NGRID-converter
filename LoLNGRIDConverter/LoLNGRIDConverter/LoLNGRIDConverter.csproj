@@ -45,7 +45,7 @@
   <ItemGroup>
     <Compile Include="Color.cs" />
     <Compile Include="NavGridCell.cs" />
-    <Compile Include="NGridFile.cs" />
+    <Compile Include="NGridFileReader.cs" />
     <Compile Include="Vector3.cs" />
     <Compile Include="FileWrapper.cs" />
     <Compile Include="Program.cs" />
