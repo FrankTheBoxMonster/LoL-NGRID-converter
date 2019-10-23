@@ -14,9 +14,12 @@ namespace LoLNGRIDConverter {
         public NearestLaneFlags nearestLaneFlags;
         public POIFlags poiFlags;
         public RingFlags ringFlags;
+        public UnknownSRXFlags srxFlags;
 
         public int x;
         public int z;
+
+        public bool hasOverride;
 
 
         public NavGridCell() {
@@ -76,7 +79,7 @@ namespace LoLNGRIDConverter {
     }
 
     public enum MainRegionFlags {  // 4 bits, equality
-        LastKnownFlag = BotSideBasePerimeter,
+        LastKnownFlag = BotSideLaneAlcove,
 
         Spawn = 0,
         Base = 1,
@@ -93,6 +96,9 @@ namespace LoLNGRIDConverter {
 
         TopSideBasePerimeter = 9,
         BotSideBasePerimeter = 10,
+
+        TopSideLaneAlcove = 11,
+        BotSideLaneAlcove = 12,
     }
 
     public enum NearestLaneFlags {  // 4 bits, equality
@@ -121,7 +127,8 @@ namespace LoLNGRIDConverter {
         None = 0,
 
         NearTurret = 1,
-        BaseGates = 2,
+        CloudDrakeWindTunnel = 2,
+        BaseGates = 2,  // note:  as of preseason 10, this flag now corresponds to cloud drake wind tunnels, and all following flags are removed
 
         BaronPit = 3,
         DragonPit = 4,
@@ -134,7 +141,7 @@ namespace LoLNGRIDConverter {
         CampMurkWolves = 10,
     }
 
-    public enum RingFlags {  // 4 bits, equality, although upper 4 bits are unused, potentially leaving room for another flag layer
+    public enum RingFlags {  // 4 bits, equality
         LastKnownFlag = RedOuterToNeutral,
 
         BlueSpawnToNexus = 0,
@@ -148,5 +155,28 @@ namespace LoLNGRIDConverter {
         RedInhibToInner = 7,
         RedInnerToOuter = 8,
         RedOuterToNeutral = 9,
+    }
+
+    public enum UnknownSRXFlags {  // 4 bits, equality?
+        LastKnownFlag = BrushWall,
+
+        Walkable = 0,
+
+        Wall = 1,
+        TransparentWall = 2,
+        Brush = 3,
+        Unobserved4 = 4,
+
+        TopSideOceanDrakePuddle = 5,
+        BotSideOceanDrakePuddle = 6,
+        BlueTeamOnly = 7,
+        RedTeamOnly = 8,
+
+        Unobserved9 = 9,
+        Unobserved10 = 10,
+        BlueTeamOnlyNeutralZoneVisibility = 11,
+        RedTeamOnlyNeutralZoneVisibility = 12,
+
+        BrushWall = 13,
     }
 }

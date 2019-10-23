@@ -41,6 +41,17 @@ namespace LoLNGRIDConverter {
                                                           new Color(240, 240, 240)
                                                         };
 
+        private const bool showOverrideColorChanges = false;
+        private static Color overrideWalkableColor = new Color(255, 0, 255);
+        private static Color overrideBrushColor = new Color(255, 165, 0);
+        private static Color overrideWallColor = new Color(64, 0, 0);
+
+        private static Dictionary<Color, Color> overrideColors = new Dictionary<Color, Color>() { { walkableColor, overrideWalkableColor },
+                                                                                                  { brushColor, overrideBrushColor },
+                                                                                                  { wallColor, overrideWallColor },
+                                                                                                  { transparentWallColor, overrideWallColor }
+                                                                                                };
+
 
         // height samples are a gradient based on whatever this color is
         // highest height sample = pure base color
@@ -58,10 +69,11 @@ namespace LoLNGRIDConverter {
         #endregion
 
 
-        private FileWrapper file;
+        private FileWrapper ngridFile;
+        private FileWrapper overlayFile;
 
-        private int majorVersion;
-        private int minorVersion;
+        private int ngridMajorVersion;
+        private int ngridMinorVersion;
 
         private Vector3 minBounds;
         private Vector3 maxBounds;
@@ -82,48 +94,48 @@ namespace LoLNGRIDConverter {
         private float maxHeightSample;
 
 
-        public NGridFileReader(FileWrapper file, int majorVersion, int minorVersion) {
-            this.file = file;
+        public NGridFileReader(FileWrapper ngridFile, int ngridMajorVersion, int ngridMinorVersion) {
+            this.ngridFile = ngridFile;
 
-            this.majorVersion = majorVersion;
-            this.minorVersion = minorVersion;
+            this.ngridMajorVersion = ngridMajorVersion;
+            this.ngridMinorVersion = ngridMinorVersion;
 
 
-            minBounds = file.ReadVector3();
-            maxBounds = file.ReadVector3();
+            minBounds = ngridFile.ReadVector3();
+            maxBounds = ngridFile.ReadVector3();
 
             Console.WriteLine("min bounds = " + minBounds + " max bounds = " + maxBounds);
 
-            cellSize = file.ReadFloat();
-            cellCountX = file.ReadInt();
-            cellCountZ = file.ReadInt();
+            cellSize = ngridFile.ReadFloat();
+            cellCountX = ngridFile.ReadInt();
+            cellCountZ = ngridFile.ReadInt();
 
             Console.WriteLine("cell size = " + cellSize + " cell count X = " + cellCountX + " cell count Z = " + cellCountZ);
 
 
-            Console.WriteLine("\nreading cells:  " + file.GetFilePosition());
+            Console.WriteLine("\nreading cells:  " + ngridFile.GetFilePosition());
 
-            if(majorVersion == 7) {
+            if(ngridMajorVersion == 7) {
                 ReadCellsVersion7();
-            } else if(majorVersion == 2 || majorVersion == 3 || majorVersion == 5) {
+            } else if(ngridMajorVersion == 2 || ngridMajorVersion == 3 || ngridMajorVersion == 5) {
                 ReadCellsVersion5();
             } else {
-                throw new System.Exception("Error:  unsupported version number " + majorVersion);
+                throw new System.Exception("Error:  unsupported version number " + ngridMajorVersion);
             }
 
 
-            Console.WriteLine("reading height samples:  " + file.GetFilePosition());
+            Console.WriteLine("reading height samples:  " + ngridFile.GetFilePosition());
 
             ReadHeightSamples();
 
 
-            Console.WriteLine("\nreading hint nodes:  " + file.GetFilePosition());
+            Console.WriteLine("\nreading hint nodes:  " + ngridFile.GetFilePosition());
 
             ReadHintNodes();
 
 
-            Console.WriteLine("\nlast read location:  " + file.GetFilePosition());
-            Console.WriteLine("missed bytes:  " + (file.GetLength() - file.GetFilePosition()));
+            Console.WriteLine("\nlast read location:  " + ngridFile.GetFilePosition());
+            Console.WriteLine("missed bytes:  " + (ngridFile.GetLength() - ngridFile.GetFilePosition()));
 
 
             CheckForMissingFlags();
@@ -141,23 +153,23 @@ namespace LoLNGRIDConverter {
                 cell.index = i;
 
 
-                file.ReadFloat();  // center height (overridden by height samples)
-                file.ReadInt();  // session ID
-                file.ReadFloat();  // arrival cost
-                file.ReadInt();  // is open
-                file.ReadFloat();  // heuristic
+                ngridFile.ReadFloat();  // center height (overridden by height samples)
+                ngridFile.ReadInt();  // session ID
+                ngridFile.ReadFloat();  // arrival cost
+                ngridFile.ReadInt();  // is open
+                ngridFile.ReadFloat();  // heuristic
 
-                cell.x = file.ReadShort();
-                cell.z = file.ReadShort();
+                cell.x = ngridFile.ReadShort();
+                cell.z = ngridFile.ReadShort();
 
-                file.ReadInt();  // actor list
-                file.ReadInt();  // unknown 1
-                file.ReadInt();  // good cell session ID
-                file.ReadFloat();  // hint weight
-                file.ReadShort();  // unknown 2
-                file.ReadShort();  // arrival direction
-                file.ReadShort();  // hint node 1
-                file.ReadShort();  // hint node 2
+                ngridFile.ReadInt();  // actor list
+                ngridFile.ReadInt();  // unknown 1
+                ngridFile.ReadInt();  // good cell session ID
+                ngridFile.ReadFloat();  // hint weight
+                ngridFile.ReadShort();  // unknown 2
+                ngridFile.ReadShort();  // arrival direction
+                ngridFile.ReadShort();  // hint node 1
+                ngridFile.ReadShort();  // hint node 2
 
 
                 cells.Add(cell);
@@ -165,21 +177,23 @@ namespace LoLNGRIDConverter {
 
 
             for(int i = 0; i < totalCellCount; i++) {
-                cells[i].visionPathingFlags = (VisionPathingFlags) file.ReadShort();
+                cells[i].visionPathingFlags = (VisionPathingFlags) ngridFile.ReadShort();
             }
 
             for(int i = 0; i < totalCellCount; i++) {
-                cells[i].riverRegionFlags = (RiverRegionFlags) file.ReadByte();
+                cells[i].riverRegionFlags = (RiverRegionFlags) ngridFile.ReadByte();
 
-                int jungleQuadrantAndMainRegionFlags = file.ReadByte();
+                int jungleQuadrantAndMainRegionFlags = ngridFile.ReadByte();
                 cells[i].jungleQuadrantFlags = (JungleQuadrantFlags) (jungleQuadrantAndMainRegionFlags & 0x0f);
                 cells[i].mainRegionFlags = (MainRegionFlags) ((jungleQuadrantAndMainRegionFlags & ~0x0f) >> 4);
 
-                int nearestLaneAndPOIFlags = file.ReadByte();
+                int nearestLaneAndPOIFlags = ngridFile.ReadByte();
                 cells[i].nearestLaneFlags = (NearestLaneFlags) (nearestLaneAndPOIFlags & 0x0f);
                 cells[i].poiFlags = (POIFlags) ((nearestLaneAndPOIFlags & ~0x0f) >> 4);
 
-                cells[i].ringFlags = (RingFlags) file.ReadByte();
+                int ringAndSRXFlags = ngridFile.ReadByte();
+                cells[i].ringFlags = (RingFlags) (ringAndSRXFlags & 0x0f);
+                cells[i].srxFlags = (UnknownSRXFlags) ((ringAndSRXFlags & ~0x0f) >> 4);
             }
 
 
@@ -191,10 +205,10 @@ namespace LoLNGRIDConverter {
             // at a certain point, each block becomes all zero for the rest of the block, but this varies by block (appears to be around
             // 40-48 bytes after the first 8 bytes until the rest is all zero)
 
-            Console.WriteLine("reading unknown block:  " + file.GetFilePosition());
+            Console.WriteLine("reading unknown block:  " + ngridFile.GetFilePosition());
             for(int i = 0; i < 8; i++) {
                 for(int j = 0; j < 132; j++) {
-                    file.ReadByte();
+                    ngridFile.ReadByte();
                 }
             }
         }
@@ -212,29 +226,29 @@ namespace LoLNGRIDConverter {
                 cell.index = i;
 
 
-                file.ReadFloat();  // center height (overridden by height samples)
-                file.ReadInt();  // session ID
-                file.ReadFloat();  // arrival cost
-                file.ReadInt();  // is open
-                file.ReadFloat();  // heuristic
-                file.ReadInt();  // actor list
+                ngridFile.ReadFloat();  // center height (overridden by height samples)
+                ngridFile.ReadInt();  // session ID
+                ngridFile.ReadFloat();  // arrival cost
+                ngridFile.ReadInt();  // is open
+                ngridFile.ReadFloat();  // heuristic
+                ngridFile.ReadInt();  // actor list
 
-                cell.x = file.ReadShort();
-                cell.z = file.ReadShort();
+                cell.x = ngridFile.ReadShort();
+                cell.z = ngridFile.ReadShort();
 
-                file.ReadFloat();  // additional cost
-                file.ReadFloat();  // hint as good cell
-                file.ReadInt();  // additional cost count
-                file.ReadInt();  // good cell session ID
-                file.ReadFloat();  // hint weight
+                ngridFile.ReadFloat();  // additional cost
+                ngridFile.ReadFloat();  // hint as good cell
+                ngridFile.ReadInt();  // additional cost count
+                ngridFile.ReadInt();  // good cell session ID
+                ngridFile.ReadFloat();  // hint weight
 
-                int arrivalDirection = file.ReadShort();  // arrival direction
-                int visionPathingFlags = file.ReadShort();
-                int hintNode1 = file.ReadShort();  // hint node 1
-                int hintNode2 = file.ReadShort();  // hint node 2
+                int arrivalDirection = ngridFile.ReadShort();  // arrival direction
+                int visionPathingFlags = ngridFile.ReadShort();
+                int hintNode1 = ngridFile.ReadShort();  // hint node 1
+                int hintNode2 = ngridFile.ReadShort();  // hint node 2
 
 
-                if(majorVersion == 2 && hintNode2 == 0) {
+                if(ngridMajorVersion == 2 && hintNode2 == 0) {
                     // older versions only gave one byte to arrival direction and vision pathing flags instead of two bytes,
                     // so we have to do some reshuffling since there was no change in major version number to reflect this,
                     // and minor version numbers didn't exist yet (both one-byte and two-byte variants use version 2)
@@ -255,23 +269,23 @@ namespace LoLNGRIDConverter {
             }
 
 
-            if(majorVersion == 5) {
+            if(ngridMajorVersion == 5) {
                 // version 5 only has 2 bytes per cell instead of version 7's 4 bytes per cell, meaning that some flag layers are missing in version 5
-                Console.WriteLine("reading flag block:  " + file.GetFilePosition());
+                Console.WriteLine("reading flag block:  " + ngridFile.GetFilePosition());
                 for(int i = 0; i < totalCellCount; i++) {
-                    cells[i].riverRegionFlags = (RiverRegionFlags) file.ReadByte();
+                    cells[i].riverRegionFlags = (RiverRegionFlags) ngridFile.ReadByte();
 
-                    int jungleQuadrantAndMainRegionFlags = file.ReadByte();
+                    int jungleQuadrantAndMainRegionFlags = ngridFile.ReadByte();
                     cells[i].jungleQuadrantFlags = (JungleQuadrantFlags) (jungleQuadrantAndMainRegionFlags & 0x0f);
                     cells[i].mainRegionFlags = (MainRegionFlags) ((jungleQuadrantAndMainRegionFlags & ~0x0f) >> 4);
                 }
 
 
                 // version 5 only has 4 blocks of 132 bytes each instead of version 7's 8 blocks of 132 bytes each
-                Console.WriteLine("reading unknown block:  " + file.GetFilePosition());
+                Console.WriteLine("reading unknown block:  " + ngridFile.GetFilePosition());
                 for(int i = 0; i < 4; i++) {
                     for(int j = 0; j < 132; j++) {
-                        file.ReadByte();
+                        ngridFile.ReadByte();
                     }
                 }
             } else {
@@ -291,10 +305,10 @@ namespace LoLNGRIDConverter {
             // there appears to be one sample per cell corner
             // total sample count = (total cell count * 4) + (cell count X * 2) + (cell count Z * 2) + 1
 
-            heightSampleCountX = file.ReadInt();
-            heightSampleCountZ = file.ReadInt();
-            heightSampleOffsetX = file.ReadFloat();
-            heightSampleOffsetZ = file.ReadFloat();
+            heightSampleCountX = ngridFile.ReadInt();
+            heightSampleCountZ = ngridFile.ReadInt();
+            heightSampleOffsetX = ngridFile.ReadFloat();
+            heightSampleOffsetZ = ngridFile.ReadFloat();
 
             // record the min and max height samples so that we can get an accurate gradient
             minHeightSample = 0;
@@ -302,7 +316,7 @@ namespace LoLNGRIDConverter {
 
             int totalCount = heightSampleCountX * heightSampleCountZ;
             for(int i = 0; i < totalCount; i++) {
-                float sample = file.ReadFloat();
+                float sample = ngridFile.ReadFloat();
 
                 if(i == 0 || sample < minHeightSample) {
                     minHeightSample = sample;
@@ -327,11 +341,11 @@ namespace LoLNGRIDConverter {
 
             for(int i = 0; i < 900; i++) {  // this 900 value *might* be variable, in practice it's constant though
                 for(int j = 0; j < 900; j++) {  // same as above
-                    file.ReadFloat();  // this appears to be a distance to another cell, but not sure how cells are indexed here, also seems to be mostly whole numbers
+                    ngridFile.ReadFloat();  // this appears to be a distance to another cell, but not sure how cells are indexed here, also seems to be mostly whole numbers
                 }
 
-                int hintX = file.ReadShort();  // are these what is referred to by 'hint nodes' in NavGridCell?
-                int hintY = file.ReadShort();
+                int hintX = ngridFile.ReadShort();  // are these what is referred to by 'hint nodes' in NavGridCell?
+                int hintY = ngridFile.ReadShort();
             }
         }
 
@@ -348,6 +362,7 @@ namespace LoLNGRIDConverter {
             List<NearestLaneFlags> newNearestLaneFlags = new List<NearestLaneFlags>();
             List<POIFlags> newPOIFlags = new List<POIFlags>();
             List<RingFlags> newRingFlags = new List<RingFlags>();
+            List<UnknownSRXFlags> newSRXFlags = new List<UnknownSRXFlags>();
 
 
             for(int i = 0; i < cells.Count; i++) {
@@ -379,6 +394,10 @@ namespace LoLNGRIDConverter {
                 if(cell.ringFlags > RingFlags.LastKnownFlag && newRingFlags.Contains(cell.ringFlags) == false) {
                     newRingFlags.Add(cell.ringFlags);
                 }
+
+                if(cell.srxFlags > UnknownSRXFlags.LastKnownFlag && newSRXFlags.Contains(cell.srxFlags) == false) {
+                    newSRXFlags.Add(cell.srxFlags);
+                }
             }
 
 
@@ -387,6 +406,7 @@ namespace LoLNGRIDConverter {
             newNearestLaneFlags.Sort();
             newPOIFlags.Sort();
             newRingFlags.Sort();
+            newSRXFlags.Sort();
 
 
             bool foundNewFlags = false;
@@ -456,10 +476,19 @@ namespace LoLNGRIDConverter {
 
             if(newRingFlags.Count > 0) {
                 foundNewFlags = true;
-                Console.WriteLine("\nfound new RingFlags (potentially a completely new flag layer using the upper 4 bits of this value):");
+                Console.WriteLine("\nfound new RingFlags:");
 
                 for(int i = 0; i < newRingFlags.Count; i++) {
                     Console.WriteLine(" - " + (int) newRingFlags[i]);
+                }
+            }
+
+            if(newSRXFlags.Count > 0) {
+                foundNewFlags = true;
+                Console.WriteLine("\nfound new SRXFlags:");
+
+                for(int i = 0; i < newSRXFlags.Count; i++) {
+                    Console.WriteLine(" - " + (int) newSRXFlags[i]);
                 }
             }
 
@@ -486,15 +515,21 @@ namespace LoLNGRIDConverter {
         #region WriteBMPFiles()
 
         private void WriteBMPFiles() {
-            string baseFileName = this.file.GetFolderPath() + this.file.GetName();
+            string baseFileName = this.ngridFile.GetFolderPath() + this.ngridFile.GetName();
 
-            FileWrapper outputVisionPathing = CreateBMPFile(baseFileName + ".VisionPathing.bmp");
+            string visionPathingFileName = baseFileName + ".VisionPathing";
+            if(this.overlayFile != null) {
+                visionPathingFileName += "." + this.overlayFile.GetName();
+            }
+            FileWrapper outputVisionPathing = CreateBMPFile(visionPathingFileName + ".bmp");
+
             FileWrapper outputRiverRegions = CreateBMPFile(baseFileName + ".RiverRegions.bmp");
             FileWrapper outputJungleQuadrants = CreateBMPFile(baseFileName + ".JungleQuadrants.bmp");
             FileWrapper outputMainRegions = CreateBMPFile(baseFileName + ".MainRegions.bmp");
             FileWrapper outputNearestLane = CreateBMPFile(baseFileName + ".NearestLane.bmp");
             FileWrapper outputPOI = CreateBMPFile(baseFileName + ".POI.bmp");
             FileWrapper outputRings = CreateBMPFile(baseFileName + ".Rings.bmp");
+            FileWrapper outputSRX = CreateBMPFile(baseFileName + ".SRX.bmp");
 
             FileWrapper outputHeightSamples = CreateBMPFile(baseFileName + ".HeightSamples.bmp", heightSampleCountX, heightSampleCountZ);
 
@@ -505,7 +540,18 @@ namespace LoLNGRIDConverter {
             for(int i = 0; i < cells.Count; i++) {
                 VisionPathingFlags filteredPathingFlags = cells[i].visionPathingFlags;
                 filteredPathingFlags &= ~VisionPathingFlags.Unknown128;  // we want to ignore this flag since it doesn't appear to have significance and makes the images patchy
-                outputVisionPathing.WriteColor(GetCellColor(filteredPathingFlags));
+                Color visionPathingColor = GetCellColor(filteredPathingFlags);
+
+                if(showOverrideColorChanges == true && cells[i].hasOverride == true) {
+                    Color overrideColor;
+                    if(overrideColors.TryGetValue(visionPathingColor, out overrideColor) == true) {
+                        // use the override color instead
+                        visionPathingColor = overrideColor;
+                    } else {
+                        // no override mapping, just keep original
+                    }
+                }
+                outputVisionPathing.WriteColor(visionPathingColor);
 
 
                 outputRiverRegions.WriteColor(GetCellColor(cells[i].riverRegionFlags));
@@ -514,6 +560,7 @@ namespace LoLNGRIDConverter {
                 outputNearestLane.WriteColor(GetCellColor(cells[i].nearestLaneFlags));
                 outputPOI.WriteColor(GetCellColor(cells[i].poiFlags));
                 outputRings.WriteColor(GetCellColor(cells[i].ringFlags));
+                outputSRX.WriteColor(GetCellColor(cells[i].srxFlags));
 
 
                 // each row gets padded so that the total byte size of the row is a multiple of 4 bytes
@@ -527,6 +574,7 @@ namespace LoLNGRIDConverter {
                         outputNearestLane.WriteByte(0);
                         outputPOI.WriteByte(0);
                         outputRings.WriteByte(0);
+                        outputSRX.WriteByte(0);
                     }
                 }
             }
@@ -563,6 +611,7 @@ namespace LoLNGRIDConverter {
             outputNearestLane.Close();
             outputPOI.Close();
             outputRings.Close();
+            outputSRX.Close();
 
             outputHeightSamples.Close();
         }
@@ -666,6 +715,13 @@ namespace LoLNGRIDConverter {
             // all other known flags are represented
 
 
+            /*if(CheckVisionPathingFlag(flags, VisionPathingFlags.Unknown128) == true) {
+                return brushColor;
+            } else {
+                return walkableColor;
+            }*/
+
+
             Color color = walkableColor;
 
             if(CheckVisionPathingFlag(flags, VisionPathingFlags.Brush) == true) {
@@ -760,6 +816,10 @@ namespace LoLNGRIDConverter {
             return GetCellColor((int) flags);
         }
 
+        private Color GetCellColor(UnknownSRXFlags flags) {
+            return GetCellColor((int) flags);
+        }
+
         private Color GetCellColor(int flags) {
             int index = flags;
 
@@ -776,9 +836,13 @@ namespace LoLNGRIDConverter {
         #region WriteLSGNGRIDFile()
 
         private void WriteLSGNGRIDFile() {
-            string baseFileName = this.file.GetFolderPath() + this.file.GetName();
+            string baseFileName = this.ngridFile.GetFolderPath() + this.ngridFile.GetName();
 
-            FileWrapper outputLSGNGRID = new FileWrapper(baseFileName + ".LSGNGRID");
+            string outputFileName = baseFileName;
+            if(this.overlayFile != null) {
+                outputFileName += "." + this.overlayFile.GetName();
+            }
+            FileWrapper outputLSGNGRID = new FileWrapper(outputFileName + ".LSGNGRID");
             outputLSGNGRID.Clear();  // don't want excess bytes remaining in the new file
 
 
@@ -822,11 +886,67 @@ namespace LoLNGRIDConverter {
                 int nearestLaneAndPOIFlags = ((int) cell.nearestLaneFlags) | ((int) cell.poiFlags << 4);
                 outputLSGNGRID.WriteByte(nearestLaneAndPOIFlags);
 
-                outputLSGNGRID.WriteByte((int) cell.ringFlags);
+                int ringAndSRXFlags = ((int) cell.ringFlags) | ((int) cell.srxFlags << 4);
+                outputLSGNGRID.WriteByte(ringAndSRXFlags);
             }
 
 
             outputLSGNGRID.Close();
+        }
+
+        #endregion
+
+
+        #region ApplyNGridOverlay()
+
+        public void ApplyNGridOverlay(FileWrapper overlayFile, int overlayMajorVersion, int overlayMinorVersion) {
+            this.overlayFile = overlayFile;
+
+
+            // this is pretty much just a giant bounding box for all of the modified cells, with only cells in this box being stored in the overlay
+            // 
+            // in practice, this cuts out 50-60% of the required data, however it could be significantly smaller if multiple bounding boxes were used
+
+            int startX = overlayFile.ReadInt();
+            int startZ = overlayFile.ReadInt();
+            int countX = overlayFile.ReadInt();
+            int countZ = overlayFile.ReadInt();
+
+            for(int i = 0; i < countZ; i++) {
+                int z = startZ + i;
+
+                for(int j = 0; j < countX; j++) {
+                    int x = startX + j;
+                    int cellIndex = (z * cellCountX) + x;
+                    NavGridCell cell = this.cells[cellIndex];
+                    VisionPathingFlags filteredFlags = cell.visionPathingFlags;
+
+
+                    VisionPathingFlags overrideFlag = (VisionPathingFlags) overlayFile.ReadShort();
+
+
+                    if(CheckVisionPathingFlag(filteredFlags, VisionPathingFlags.StructureWall) == true) {
+                        // don't allow structure wall cells to be overridden
+                        // 
+                        // overlay files tend to not include structure wall flags, which means that if we don't filter them ourselves, then
+                        // we'll end up completely wiping them
+                    } else {
+                        filteredFlags &= ~VisionPathingFlags.Unknown128;
+                        filteredFlags &= ~VisionPathingFlags.TransparentWall;
+                        VisionPathingFlags filteredOverrideFlag = overrideFlag & ~VisionPathingFlags.TransparentWall;
+
+                        if(filteredFlags != filteredOverrideFlag) {
+                            cell.hasOverride = true;
+                        }
+
+                        cell.visionPathingFlags = overrideFlag;
+                    }
+                }
+            }
+
+
+            Console.WriteLine("\nlast read location:  " + overlayFile.GetFilePosition());
+            Console.WriteLine("missed bytes:  " + (overlayFile.GetLength() - overlayFile.GetFilePosition()));
         }
 
         #endregion

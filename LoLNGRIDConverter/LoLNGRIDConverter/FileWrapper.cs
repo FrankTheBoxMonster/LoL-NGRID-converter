@@ -8,11 +8,14 @@ using System.IO;
 namespace LoLNGRIDConverter {
     public class FileWrapper {
 
+        private const int bufferSize = 8;
+
         public string folderPath { get; private set; }
         public string name { get; private set; }
         public string fileExtension { get; private set; }
 
         private FileStream fileStream;
+        private byte[] readBuffer;
 
 
         public FileWrapper(string filePath) {
@@ -32,6 +35,8 @@ namespace LoLNGRIDConverter {
                 Directory.CreateDirectory(folderPath);
             }
             fileStream = File.Open(filePath, fileMode, FileAccess.ReadWrite, FileShare.ReadWrite);
+
+            readBuffer = new byte[bufferSize];
         }
 
         ~FileWrapper() {
@@ -288,13 +293,12 @@ namespace LoLNGRIDConverter {
             try {
                 Seek(offset);
 
-                byte[] bytes = new byte[4];
-                fileStream.Read(bytes, 0, 4);
+                fileStream.Read(readBuffer, 0, 4);
 
                 int n = 0;
                 for(int i = 0; i < 4; i++) {
                     n = n << 8;
-                    n += bytes[3 - i];
+                    n += readBuffer[3 - i];
                 }
 
                 return n;
@@ -308,23 +312,22 @@ namespace LoLNGRIDConverter {
             try {
                 Seek(offset);
 
-                byte[] bytes = new byte[4];
-                fileStream.Read(bytes, 0, 4);
+                fileStream.Read(readBuffer, 0, 4);
 
                 // endianness cannot be set directly and is dependent on the computer's system architecture
                 if(System.BitConverter.IsLittleEndian == false) {
                     // bytes are to be read in big-endian format, so reverse the array
 
-                    byte temp = bytes[3];
-                    bytes[3] = bytes[0];
-                    bytes[0] = temp;
+                    byte temp = readBuffer[3];
+                    readBuffer[3] = readBuffer[0];
+                    readBuffer[0] = temp;
 
-                    temp = bytes[2];
-                    bytes[2] = bytes[1];
-                    bytes[1] = temp;
+                    temp = readBuffer[2];
+                    readBuffer[2] = readBuffer[1];
+                    readBuffer[1] = temp;
                 }
 
-                float f = System.BitConverter.ToSingle(bytes, 0);
+                float f = System.BitConverter.ToSingle(readBuffer, 0);
 
                 return f;
             } catch(System.Exception e) {
@@ -337,13 +340,12 @@ namespace LoLNGRIDConverter {
             try {
                 Seek(offset);
 
-                byte[] bytes = new byte[2];
-                fileStream.Read(bytes, 0, 2);
+                fileStream.Read(readBuffer, 0, 2);
 
                 int n = 0;
                 for(int i = 0; i < 2; i++) {
                     n = n << 8;
-                    n += bytes[1 - i];
+                    n += readBuffer[1 - i];
                 }
 
                 return (short) n;
